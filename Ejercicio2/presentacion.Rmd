@@ -1,0 +1,48 @@
+---
+title: "Pronóstico del tipo de cambio peso/dólar"
+author: "José Ángel Rodríguez"
+date: "3/13/2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r,include=F}
+source(paste0(getwd(),'/code.R'), local = knitr::knit_global())
+```
+
+## Datos
+
+Los datos que se van a usar corresponden al tipo de cambio diario peso-dólar desde el 2006 y se obtuvieron desde la página oficial de BANXICO. Ahí se encuentra la información de las publicaciones diarias de tres variables y la que tomamos es la variable FIX. Para un análisis más completo se puede más información referente a tasas de interés, inflación inversión extranjera en México, pero por cuestiones de tiempo, aquí solamente se trabajará con la serie de tiempo.
+
+## Limpieza de datos
+
+Primero se tuvo que corregir el formato de las fechas de "01/01/2000" a "2000-01-01" para poder reconocer las cadenas de texto como objetos de tipo fecha. Otro punto importante es que las publicaciones del tipo de cambio solamente se dan entre semana y en los días hábiles. Al tratarse de una serie de tiempo no es conveniente quitar las observaciones ni usar técnicas como las de llenar los datos faltantes por la mediana de los datos. Lo que hacemos es llenar los datos faltantes con el último valor no nulo. Esto lleva a tener varios valores repetidos pero no da problemas con tener picos cada semana por los distintos niveles del tipo de cambio a lo largo del periodo considerado.
+
+## Datos que se van a usar
+
+Aunque se tienen datos disponibles desde el 2006 vamos a tomar información desde el 2012 que es el primer año a partir del 2006 en que hay cambio de mandato en el mismo año en México y en Estados Unidos. De esta forma podemos tomar factores de estacionalidad tanto anual como cada 4 y 6 años para poder tomar en consideración la variabilidad en el tipo de cambio que resulta de cuestiones políticas. Para algunas partes del análisis no se podrá tomar en cuenta el periodo de 6 años ya que no hay suficientes datos para identificar ese comportamiento.
+
+Considerando esto los datos se descomponen de la siguiente forma:
+
+```{r, echo = F}
+plot_serie_de_tiempo
+```
+
+Al ser una variable que es afectada por factores que van cambiando anualmente y con otros tipos de periodicidad usar modelos como STLM están en un muy buen punto en el trade-off de complejidad y calidad de resultados, que funciona tomando en cuenta los valores más recientes en cuanto a la tendencia de la variable independiente y la información correspondiente a los periodos de predicciones de factores de estacionalidad. Se obtuvo lo siguiente:
+
+```{r, echo = F}
+comparacion
+```
+Podemos ver en la gráfica que al menos en cuanto al nivel de las observaciones las predicciones están razonablemente bien. Para ver más a detalle ahora vemos solamente el periodo con predicciones de las que si hay observaciones. Esto es las observaciones de Diciembre 2021 al 11 de Marzo de 2022.
+
+```{r, echo=F}
+print(comparacion_periodo_final)
+```
+Donde vemos que el modelo también está bien en cuanto a los movimientos aunque hay un desface algo importante alrededor de Enero y en los últimos días de Marzo se hicieron predicciones significativamente menores a los valores reales, esto último se podría atribuir en parte a las condiciones extraordinarias del mercado FOREX por el conflicto armado entre Rusia y Ucrania.
+
+Con respecto a este periodo tenemos un error medio absoluto de .24, un error de media cuadrada de .08 y una raiz del error de media cuadrada de .29.
+
+Aunque el tipo de cambio sea un valor muy volatil que depende de muchas cosas que no se puede preever, se ha presentado una forma (que se puede mejorar y hacer más robusta) de hacer predicciones que puede ser útil para GFB en el contexto de asesorar a compañias en la toma de decisiones con respecto inversiones en divisas y en la parte de importaciones y exportaciones. Un ejemplo de esto podría ser en el sector gasolinero, en el que esta información puede ser muy valiosa para importadores de gasolina para, en conjunto con información del petroleo y otros precios de referencia, saber si es conveniente surtirse de PEMEX o importar de EEUU.
