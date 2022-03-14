@@ -1,0 +1,136 @@
+---
+title: "Estudio del sistema público de bicicletas de la CDMX"
+author: "José Ángel Rodríguez"
+date: "3/8/2022"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include = F}
+source(paste0(getwd(),'/ecobici.R'), local = knitr::knit_global())
+```
+
+
+### Pregunta 1
+
+Primero realizamos un breve análisis exploratorio de los datos que tenemos:
+
+```{r ecobici, echo = F}
+resumen_ecobici
+```
+
+De aquí podemos ver dos cosas extrañas. Primero, el valor máximo de la variable 'duracion' que corresponde a aproximadamente 117 días y además tenemos un promedio de 72 minutos por viaje cuando el 75% de las observaciones está abajo de 21 minutos. Como segundo punto tenemos que el valor máximo de la variable 'estacion_retiro' es 3002, cuando se supone que solamente hay 480 estaciones. Sobre este segundo punto solamente se tienen dos observaciones:
+
+```{r, echo=F}
+ecobici %>% filter(estacion_retiro == 3002)
+```
+
+y como claramente corresponden a datos que están mal registrados podemos ignorarlos para el resto del estudio. Sin embargo, para el primer punto no es tan fácil decidir que hacer. Por el sistema de tarifas y multas que tiene ECOBICI podríamos suponer que cualquier observación que tiene una duración de uso de más de 3 horas corresponde a un accidente, extravío de la bicicleta o un error del sistema en el registro, que en cualquier caso podemos considerar como outliers, pero vamos a revisarlo con un poco de más cuidado. Primero vemos como se ve la distribución de la duración para observaciones en los que esta variable es menor a 79 (99% de las observaciones)
+
+```{r, echo = F}
+qplot(ecobici$duracion[ecobici$duracion<79],
+      geom="histogram",
+      binwidth = 2,
+      main = "Histograma de Duración de Viaje",
+      xlab = "Duración (minutos)",
+      fill=I("blue"),
+      col=I("red"),
+      alpha=I(.2)#,
+      #xlim=c(0,50)
+      )
+```
+
+Como la duración está tan sesgada a la izquierda algunas de las técnicas tradicionales para la detección de outliers como usar el rango intercuartílico no son tan apropiadas, ya que tendríamos un rango intercuartílico muy pequeño y perderíamos muchas de las observaciones con duración mayor a 10 minutos. Algo que podría dar mejores resultados es usar técnicas de proximidad de los datos como agrupar en clusters usando el algoritmo k-means. Como sabemos que hay mucha mayor densidad para observaciones con duraciones pequeñas podemos tomar k=2 para ver hasta donde se consideran observaciones como parte de las de duración corta. Alternativamente se podría usar el 'elbow-method' para encontrar un valor óptimo para k, pero para el uso del algoritmo que tenemos tomar k=2 funciona. Como solamente nos interesa agrupar los datos de acuerdo a la duracion solamente consideramos esta variable.
+
+```{r,echo=F}
+print(kmeans_duracion_plot)
+```
+
+Vemos que los clusters se separan en aproximadamente 50,000 minutos que corresponde a 34 dias, que es un buen primer paso y reafirma lo que se creía pero nos gustaría tener un límite un poco más estricto. Para esto usamos el método de 'z_scores' que indica que tanto (en términos de la desviación estandar) se alejan las observaciones de la media y por lo tanto es una mejor alternativa para datos que están muy lejos de ser simétricos (como que los que tenemos) que usar el rango intercuartílico. Después de quitar las observaciones con valores nos quedamos con los siguientes datos (más del 99.9% de los datos originales)
+
+```{r,echo=F}
+resumen_ecobici_sin_outliers
+```
+
+Aun hay observaciones con valores de duración alta, que podemos ver por el máximo de esta variable. Esto se tiene que tomar en cuenta más adelante ya que la media de este valor puede no ser tan representativo como la mediana. Ahora vamos a la primera pregunta.
+
+La mayor afluencia se tiene a las 18, 14, 15 horas. Esto se encontró agrupando la información por hora para hacer un conteo de el número de retiros y arribos que se tienen y se puede ver en la siguiente gráfica.
+
+```{r,echo=F}
+print(usos_hora_plot)
+```
+
+Las 10 estaciones más ocupadas (considerando tanto número de retiros como número de arribos) son las siguientes estaciones:
+
+```{r,echo=F}
+usos_por_estacion %>% slice_max(usos,n = 10) %>% arrange(desc(usos))
+```
+
+
+Como el mínimo de edad es 17 años podemos suponer que la mayoría de los usuarios usan las bicicletas para transportarse entre su casa y trabajo, su casa yuniversidad o preparatoria o para ir del trabajo a comer. A esto se puede deber que las horas de mayor uso sean las que se tienen ya que son horas que corresponden a horas de salida del trabajo, horas de ir a comer y tal vez horas de salida de clases.
+
+## Pregunta 2
+
+Ahora vamos a analizar el comportamiento de la edad de los usuarios contra la hora a la que terminan los viajes a nivel estación para poder encontrar algo acerca de las estaciones y sus usuarios. Como vamos a trabajar esto a nivel estación es necesario agrupar la información y considerar algún estadístico que represente la información de cada variable. Usamos el promedio en lugar de la moda o mediana ya que aunque queremos estudiar el comportamiento de una estación y para eso tendría sentido considerar moda para tener la información que representa a los usos de bicicletas típicos de esa estación, eso llevaría a una menor variación en los datos y sería más dificil para el método encontrar información relevante.
+
+El método de aprendizaje no supervisado que vamos a usar es el algoritmo 'k means clustering' que funciona muy bien para encontrar grupos con respecto a 2 variables. Para escoger el número de grupos primero comparamos la inercia (suma de distancias de observaciones en cada grupo) con el número de grupos y buscamos el punto en que el decremento en la inercia empieza a ser lineal.
+
+```{r,echo=F}
+print(elbow)
+```
+
+Vemos que ese comportamiento se manifiesta primero en 3 grupos. Por lo que buscamos nos gustaría tener más grupos para poder discriminar mejor unas estaciones de otras y por eso también será de interés considerar 6 grupos donde también vemos un corte aunque mucho menos pronunciado. Comparamos los resultados obtenidos anteriormente con otro método llamado 'gap statistic' que toma información similar a lo que se hace en el 'elbow method', pero también se considera la variación esperada de los datos sin agrupación alguna. Obtenemos lo siguiente:
+
+```{r,echo=F}
+print(gap)
+```
+
+Vemos que aunque hay un máximo local en 3 grupos (cómo se vio con el otro método) después de los 6 grupos el decremento empieza a ser más pequeño cada vez. En lo que sigue mostraremos los resultados obtenidos con 3 grupos pero nos enfocaremos más en el caso de 6 grupos.
+
+```{r,echo=F}
+print(tres_clusters)
+```
+
+```{r,echo=F}
+print(seis_clusters)
+```
+
+Las estaciones de los grupos 1,3 y 6 tienen horas de arribo altas (recordamos que aunque los valores están alrededor de las 3:00 p.m. estos son promedios) esto se puede deber a que se encuentran principalmente en zonas universitarias,oficinas o comerciales, ya que al salir de ahí las personas llegan a su destino tarde. Por el otro lado podemos considerar que las estaciones de los grupos 2 y 5 se encuentran en zonas en zonas residenciales, ya que las personas que tomaron bicicletas de esas estaciones tuvieron que haber llegado a las mismas bastante temprano, podemos decir lo mismo con mayor seguirdad para el grupo 4.
+
+Aunque en cuanto a hora de arribo los grupos 2 y 5 son similares, las edades de los usuarios son muy diferentes, tomando en cuenta que estas estaciones se encuentran en zonas residenciales estas se pueden discriminar por niveles de ingreso considerando que en promedio las personas que usan las estaciones del grupo 2 tienen menor ingreso en promedio que las del grupo 5. Con respecto a las estaciones 1,3 y 6 podemos usar la edad para discriminar el tipo de industria al que corresponden las personas que salieron de esas estaciones.
+
+## Pregunta 3
+
+El modelo estadístico paramétrico que vamos a usar para encontrar tendencias en el número de usos por estación por día va a ser Regresión Lineal. Para cada estación construiremos un modelo de regresión lineal simple y consideraremos la pendiente (el coeficiente que estima el cambio en usos a lo largo del tiempo). Como este valor va a depender del nivel de usos que haya por estación es necesario relativizar esta cantidad y para hacer eso dividimos la pendiente entre el promedio de usos diarios por estación.
+
+Aunque hay efectos de estacionalidad que puedan meter ruido a los modelos al considerar los mismos periodos para todas las estaciones podemos suponer que estos efectos impactan de la misma forma a todas las estaciones y trabajar con la información como se tiene.
+
+Las 3 estaciones con mayor tendencia a la alta y menor tendencia a la baja son las siguientes:
+
+```{r,echo=F}
+resumen_tendencia
+```
+
+donde el Indice de Tendencia representa la proporción del promedio de usos diarios que representa el cambio de usos de un día a otro. Ahora hacemos una comparación de las tendencias gráficamente.
+
+
+```{r,echo=F}
+print(plot_tendencia)
+```
+
+Podemos ver que esta forma de comparar la tendencia da buenos resultados si nos interesa el comportamiento un poco más a largo plazo, pero que tal vez no le asigna la importancia que se merece la información más reciente, como se ve en los casos de las estaciones Baja2 y Baja 3. También es importante mencionar que en general se ha presentado un comportamiento de tendencia a la alza como muestra la última gráfica y que por eso no está mal que nuestras estaciones con tendencia a la baja no todas tengan un comportamiento como el de la estación Baja 1.
+
+```{r,echo=F}
+print(tendencia_total)
+```
+
+Esta información puede ser útil para saber en que tipo de lugares sería conveniente abrir nuevas estaciones o dar mayor capacidad a las que existen.
+
+## Pregunta 4
+
+Para mostrar el mapa se puede usar la API de Google Maps para JavaScript. 
