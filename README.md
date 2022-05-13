@@ -1,16 +1,17 @@
-# testGFB
+## Study of the system of public bicycles in Mexico City
 
-Ejercicio1
--  Ejercicio1.Rproj <- proyecto de R -- si se va a ejecutar desde Rstudio abrir este documento
--  ecobici.R <- código
--  entregable.Rmd <- markdown que genera los resultados
--  entregable.pdf <- Resultados en formato pdf
--  entregable.html <- Resultados en formato html
--  datos <- archivos csv con la información de ECOBICI
+The purpose of the project was to analyze the data of the cycling trips in order to aid in the decision making of adding more bicycles or stations to the system and in which locations, as well as to provide other insightful information of the user in order to be able to provide a better and more affordable (as far as how fines due to a late return of the bike is concerned) service. The points that were addressed include:
 
-Ejercicio2
--  Ejercicio2.Rproj <- proyecto de R -- si se va a ejecutar desde Rstudio abrir este documento
--  tipoCambio.csv <- Datos de tipo de cambio Peso Dólar
--  code.R <- código
--  presentacion.pdf <- presentacion
--  presentacion.Rmd <- markdown que genera la presentacion
+  Hours and stations with the highest rate of usage.
+  
+  Distance between stations that have the highest number of shared trips.
+  
+  Characteristics of stations with the highest decline and increase in usage.
+  
+  Characteristics of the trips that resulted in the highest fines.
+  
+  
+  
+  
+  
+  
